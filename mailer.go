@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"math/rand"
 	"net"
 	"strings"
@@ -70,7 +71,7 @@ func (m *Mailer) sendmail(tmpl, to, subject string, data interface{}) error {
 	if err != nil {
 		return err
 	}
-	logger.Infof("sendmail from %q to %q %q via %s:%d", from, to, subject, server, port)
+	logrus.Infof("sendmail from %q to %q %q via %s:%d", from, to, subject, server, port)
 
 	msg := gomail.NewMessage()
 	msg.SetHeader("From", from)

@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -10,7 +12,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"golang.org/x/crypto/bcrypt"
 
-	qrcode "github.com/skip2/go-qrcode"
+	"github.com/skip2/go-qrcode"
 )
 
 var (
@@ -26,18 +28,18 @@ func ssoHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	logger.Debugf("SSO: require account handler")
+	logrus.Debugf("SSO: require account handler")
 	samlSP.RequireAccountHandler(w, r)
 	return
 }
 
 func samlHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	if samlSP == nil {
-		logger.Warnf("SAML is not configured")
+		logrus.Warnf("SAML is not configured")
 		http.NotFound(w, r)
 		return
 	}
-	logger.Debugf("SSO: samlSP.ServeHTTP")
+	logrus.Debugf("SSO: samlSP.ServeHTTP")
 	samlSP.ServeHTTP(w, r)
 }
 
@@ -180,7 +182,7 @@ func forgotHandler(w *Web) {
 
 		go func() {
 			if err := mailer.Forgot(email, secret); err != nil {
-				logger.Error(err)
+				logrus.Error(err)
 			}
 		}()
 
@@ -307,7 +309,7 @@ func userDeleteHandler(w *Web) {
 
 	for _, profile := range config.ListProfilesByUser(user.ID) {
 		if err := deleteProfile(profile); err != nil {
-			logger.Errorf("delete profile failed: %s", err)
+			logrus.Errorf("delete profile failed: %s", err)
 			w.Redirect("/profile/delete?error=deleteprofile")
 			return
 		}
@@ -360,30 +362,40 @@ func profileAddHandler(w *Web) {
 
 	profile, err := config.AddProfile(userID, name, platform)
 	if err != nil {
-		logger.Warn(err)
+		logrus.Warn(err)
 		w.Redirect("/?error=addprofile")
 		return
 	}
+
+	_, ipNet, err := net.ParseCIDR(clientIPv4Subnet)
+	if err != nil {
+		logrus.Warn(err)
+		w.Redirect("/?error=addprofile")
+		return
+	}
+
+	subnetSplit := strings.Split(clientIPv4Subnet, ".")
+	newAddr := fmt.Sprintf("%s.%s.%s.%d", subnetSplit[0], subnetSplit[1], subnetSplit[2], profile.Number)
 
 	script := `
 cd {{$.Datadir}}/wireguard
 wg_private_key="$(wg genkey)"
 wg_public_key="$(echo $wg_private_key | wg pubkey)"
 
-wg set wg0 peer ${wg_public_key} allowed-ips 10.99.97.{{$.Profile.Number}}/32,fd00::10:97:{{$.Profile.Number}}/128
+wg set wg0 peer ${wg_public_key} allowed-ips {{$.NewAddress}}/32,fd00::10:97:{{$.Profile.Number}}/128
 
 cat <<WGPEER >peers/{{$.Profile.ID}}.conf
 [Peer]
 PublicKey = ${wg_public_key}
-AllowedIPs = 10.99.97.{{$.Profile.Number}}/32,fd00::10:97:{{$.Profile.Number}}/128
+AllowedIPs = {{$.NewAddress}}/32,fd00::10:97:{{$.Profile.Number}}/128
 
 WGPEER
 
     cat <<WGCLIENT >clients/{{$.Profile.ID}}.conf
 [Interface]
 PrivateKey = ${wg_private_key}
-DNS = 10.99.97.1, fd00::10:97:1
-Address = 10.99.97.{{$.Profile.Number}}/22,fd00::10:97:{{$.Profile.Number}}/112
+DNS = {{$.ClientIPv4Gateway}}, {{$.ClientIPv6Gateway}}
+Address = {{$.NewAddress}}/{{$.NewAddressMask}},fd00::10:97:{{$.Profile.Number}}/112
 
 [Peer]
 PublicKey = $(cat server.public)
@@ -392,16 +404,24 @@ AllowedIPs = 0.0.0.0/0, ::/0
 WGCLIENT
 `
 	_, err = bash(script, struct {
-		Datadir string
-		Profile Profile
-		Domain  string
+		Datadir           string
+		Profile           Profile
+		Domain            string
+		NewAddress        string
+		NewAddressMask    string
+		ClientIPv4Gateway string
+		ClientIPv6Gateway string
 	}{
 		datadir,
 		profile,
 		httpHost,
+		newAddr,
+		ipNet.Mask.String(),
+		clientIPv4Gateway,
+		clientIPv6Gateway,
 	})
 	if err != nil {
-		logger.Warn(err)
+		logrus.Warn(err)
 		w.Redirect("/?error=addprofile")
 		return
 	}
@@ -445,7 +465,7 @@ func profileDeleteHandler(w *Web) {
 		return
 	}
 	if err := deleteProfile(profile); err != nil {
-		logger.Errorf("delete profile failed: %s", err)
+		logrus.Errorf("delete profile failed: %s", err)
 		w.Redirect("/profile/delete?error=deleteprofile")
 		return
 	}
@@ -495,7 +515,7 @@ func settingsHandler(w *Web) {
 	// Configure SAML if metadata is present.
 	if len(samlMetadata) > 0 {
 		if err := configureSAML(); err != nil {
-			logger.Warnf("configuring SAML failed: %s", err)
+			logrus.Warnf("configuring SAML failed: %s", err)
 			w.Redirect("/settings?error=saml")
 		}
 	} else {
