@@ -11,6 +11,11 @@ if [[ -z "${SUBSPACE_HTTP_HOST-}" ]]; then
 fi
 
 # Require environment variables.
+if [[ -z "${SUBSPACE_WIREGUARD_PORT-}" ]]; then
+    export SUBSPACE_WIREGUARD_PORT=51820
+fi
+
+# Require environment variables.
 if [[ -z "${SUBSPACE_CLIENT_IPV6_ENABLED-}" ]]; then
     export SUBSPACE_CLIENT_IPV6_ENABLED=false
 fi
@@ -147,7 +152,7 @@ fi
 cat <<WGSERVER >/data/wireguard/server.conf
 [Interface]
 PrivateKey = $(cat /data/wireguard/server.private)
-ListenPort = 51820
+ListenPort = ${SUBSPACE_WIREGUARD_PORT}
 
 WGSERVER
 cat /data/wireguard/peers/*.conf >>/data/wireguard/server.conf
@@ -217,6 +222,7 @@ exec /usr/bin/subspace \
     "--http-insecure=${SUBSPACE_HTTP_INSECURE}" \
     "--backlink=${SUBSPACE_BACKLINK}" \
     "--letsencrypt=${SUBSPACE_LETSENCRYPT}" \
+    "--wireguard-port=${SUBSPACE_WIREGUARD_PORT}" \
     "--client-ipv4-subnet=${SUBSPACE_CLIENT_IPV4_SUBNET}" \
     "--client-ipv4-gateway=${SUBSPACE_CLIENT_IPV4_GATEWAY}" \
     "--client-ipv4-dns=${SUBSPACE_CLIENT_IPV4_DNS}" \

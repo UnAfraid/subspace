@@ -139,6 +139,7 @@ docker create \
     --volume /usr/bin/wg:/usr/bin/wg \
     --volume /data:/data \
     --env SUBSPACE_HTTP_HOST=subspace.example.com \
+    --env SUBSPACE_WIREGUARD_PORT=51820 \
     --env SUBSPACE_CLIENT_IPV4_SUBNET=10.99.97.0/24 \
     --env SUBSPACE_CLIENT_IPV4_GATEWAY=10.99.97.1 \
     --env SUBSPACE_CLIENT_IPV4_DNS=10.99.97.1 \

@@ -374,6 +374,8 @@ func profileAddHandler(w *Web) {
 		return
 	}
 
+	mask, _ := ipNet.Mask.Size()
+
 	subnetSplit := strings.Split(clientIPv4Subnet, ".")
 	newAddr := fmt.Sprintf("%s.%s.%s.%d", subnetSplit[0], subnetSplit[1], subnetSplit[2], profile.Number)
 
@@ -399,7 +401,7 @@ Address = {{$.NewAddress}}/{{$.NewAddressMask}},fd00::10:97:{{$.Profile.Number}}
 
 [Peer]
 PublicKey = $(cat server.public)
-Endpoint = {{$.Domain}}:51820
+Endpoint = {{$.Domain}}:{{$.WireguardPort}}
 AllowedIPs = 0.0.0.0/0, ::/0
 WGCLIENT
 `
@@ -407,16 +409,18 @@ WGCLIENT
 		Datadir           string
 		Profile           Profile
 		Domain            string
+		WireguardPort     int
 		NewAddress        string
-		NewAddressMask    string
+		NewAddressMask    int
 		ClientIPv4Gateway string
 		ClientIPv6Gateway string
 	}{
 		datadir,
 		profile,
 		httpHost,
+		wireguardPort,
 		newAddr,
-		ipNet.Mask.String(),
+		mask,
 		clientIPv4Gateway,
 		clientIPv6Gateway,
 	})

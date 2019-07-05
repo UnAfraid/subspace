@@ -85,6 +85,7 @@ var (
 	// Error page HTML
 	errorPageHTML = `<html><head><title>Error</title></head><body text="orangered" bgcolor="black"><h1>An error has occurred</h1></body></html>`
 
+	wireguardPort int
 	// Client ipv4 configuration
 	clientIPv4Subnet  string
 	clientIPv4Gateway string
@@ -105,6 +106,7 @@ func init() {
 	cli.BoolVar(&httpInsecure, "http-insecure", false, "enable sessions cookies for http (no https) not recommended")
 	cli.BoolVar(&letsencrypt, "letsencrypt", true, "enable TLS using Let's Encrypt on port 443")
 
+	cli.IntVar(&wireguardPort, "wireguard-port", 51820, "the wireguard port")
 	cli.StringVar(&clientIPv4Subnet, "client-ipv4-subnet", "10.99.97.0/24", "the wireguard client ipv4 subnet example 10.99.97.0/24")
 	cli.StringVar(&clientIPv4Gateway, "client-ipv4-gateway", "10.99.97.1", "the wireguard client ipv4 gateway")
 	cli.StringVar(&clientIPv4DNS, "client-ipv4-dns", "10.99.97.1", "the wireguard client ipv4 dns")
