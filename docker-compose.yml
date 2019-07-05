@@ -1,0 +1,24 @@
+version: "2"
+services:
+  subspace:
+    image: unafraid/subspace:latest
+    container_name: subspace
+    restart: always
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - /usr/bin/wg:/usr/bin/wg
+      - ./data:/data
+    environment:
+      - SUBSPACE_HTTP_HOST=subspace.example.com
+      - SUBSPACE_HTTP_ADDR=:80
+      - SUBSPACE_HTTP_INSECURE=false
+      - SUBSPACE_LETSENCRYPT=true
+      - SUBSPACE_CLIENT_IPV4_SUBNET=10.99.97.0/24
+      - SUBSPACE_CLIENT_IPV4_GATEWAY=10.99.97.1
+      - SUBSPACE_CLIENT_IPV4_DNS=10.99.97.1
+      - SUBSPACE_CLIENT_IPV6_ENABLED=true
+      - SUBSPACE_CLIENT_IPV6_SUBNET=fd00::10:97:0/112
+      - SUBSPACE_CLIENT_IPV6_GATEWAY=fd00::10:97:1
+      - SUBSPACE_CLIENT_IPV6_DNS=fd00::10:97:1

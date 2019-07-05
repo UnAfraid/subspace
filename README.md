@@ -98,7 +98,7 @@ $ subspace --http-host subspace.example.com
 
 #### Install WireGuard on the host
 
-The container expects WireGuard to be installed on the host. The official image is `subspacecloud/subspace`.
+The container expects WireGuard to be installed on the host. The official image is `subspacecloud/subspace` however my fork's official image is `unafraid/subspace`
 
 ```bash
 add-apt-repository -y ppa:wireguard/wireguard
@@ -139,7 +139,14 @@ docker create \
     --volume /usr/bin/wg:/usr/bin/wg \
     --volume /data:/data \
     --env SUBSPACE_HTTP_HOST=subspace.example.com \
-    subspacecloud/subspace:latest
+    --env SUBSPACE_CLIENT_IPV4_SUBNET=10.99.97.0/24 \
+    --env SUBSPACE_CLIENT_IPV4_GATEWAY=10.99.97.1 \
+    --env SUBSPACE_CLIENT_IPV4_DNS=10.99.97.1 \
+    --env SUBSPACE_CLIENT_IPV6_ENABLED=true \
+    --env SUBSPACE_CLIENT_IPV6_SUBNET=fd00::10:97:0/112 \
+    --env SUBSPACE_CLIENT_IPV6_GATEWAY=fd00::10:97:1 \
+    --env SUBSPACE_CLIENT_IPV6_DNS=fd00::10:97:1 \
+    unafraid/subspace:latest
 
 $ sudo docker start subspace
 
@@ -155,7 +162,7 @@ Pull the latest image, remove the container, and re-create the container as expl
 
 ```bash
 # Pull the latest image
-$ sudo docker pull subspacecloud/subspace
+$ sudo docker pull unafraid/subspace
 
 # Stop the container
 $ sudo docker stop subspace
@@ -164,7 +171,7 @@ $ sudo docker stop subspace
 $ sudo docker rm subspace
 
 # Re-create and start the container
-$ sudo docker create ... (see above)
+$ sudo docker create ... #(see above)
 ```
 
 ## Help / Reporting Bugs

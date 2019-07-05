@@ -5,7 +5,7 @@ set -o pipefail
 set -o xtrace
 
 # Require environment variables.
-if [[ -z "${SUBSPACE_HTTP_HOST}" ]]; then
+if [[ -z "${SUBSPACE_HTTP_HOST-}" ]]; then
     echo "Environment variable SUBSPACE_HTTP_HOST required. Exiting."
     exit 1
 fi
