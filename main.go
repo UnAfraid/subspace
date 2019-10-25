@@ -1,5 +1,7 @@
 package main
 
+//go:generate go-bindata -ignore=\.go templates/... email/... static/...
+
 import (
 	"context"
 	"crypto/rand"
@@ -87,15 +89,21 @@ var (
 
 	wireguardPort int
 	// Client ipv4 configuration
-	clientIPv4Subnet  string
-	clientIPv4Gateway string
-	clientIPv4DNS     string
+	clientIPv4Subnet     string
+	clientIPv4Gateway    string
+	clientIPv4UseGateway bool
+	clientIPv4DNS        string
+	clientIPv4UseDNS     bool
 
 	// Client ipv6 configuration
-	clientIPv6Enabled bool
-	clientIPv6Subnet  string
-	clientIPv6Gateway string
-	clientIPv6DNS     string
+	clientIPv6Enabled    bool
+	clientIPv6Subnet     string
+	clientIPv6Gateway    string
+	clientIPv6UseGateway bool
+	clientIPv6DNS        string
+	clientIPv6UseDNS     bool
+
+	clientKeepAlive int
 )
 
 func init() {
@@ -109,12 +117,18 @@ func init() {
 	cli.IntVar(&wireguardPort, "wireguard-port", 51820, "the wireguard port")
 	cli.StringVar(&clientIPv4Subnet, "client-ipv4-subnet", "10.99.97.0/24", "the wireguard client ipv4 subnet example 10.99.97.0/24")
 	cli.StringVar(&clientIPv4Gateway, "client-ipv4-gateway", "10.99.97.1", "the wireguard client ipv4 gateway")
+	cli.BoolVar(&clientIPv4UseGateway, "client-ipv4-use-gateway", true, "enables the wireguard client ipv4 gateway")
 	cli.StringVar(&clientIPv4DNS, "client-ipv4-dns", "10.99.97.1", "the wireguard client ipv4 dns")
+	cli.BoolVar(&clientIPv4UseDNS, "client-ipv4-use-dns", true, "enables the wireguard client ipv4 dns")
 
 	cli.BoolVar(&clientIPv6Enabled, "client-ipv6-enabled", false, "enables/disables ipv6 client support")
 	cli.StringVar(&clientIPv6Subnet, "client-ipv6-subnet", "fd00::10:97:0/112", "the wireguard client ipv6 subnet example 10.99.97.0/24")
 	cli.StringVar(&clientIPv6Gateway, "client-ipv6-gateway", "fd00::10:97:1", "the wireguard client ipv6 gateway")
+	cli.BoolVar(&clientIPv6UseGateway, "client-ipv6-use-gateway", true, "enables the wireguard client ipv6 gateway")
 	cli.StringVar(&clientIPv6DNS, "client-ipv6-dns", "fd00::10:97:1", "the wireguard client ipv6 dns")
+	cli.BoolVar(&clientIPv6UseDNS, "client-ipv6-use-dns", true, "enables the wireguard client ipv6 dns")
+
+	cli.IntVar(&clientKeepAlive, "client-keep-alive", 0, "enables keep alive")
 
 	cli.BoolVar(&showVersion, "version", false, "display version and exit")
 	cli.BoolVar(&showHelp, "help", false, "display help and exit")
@@ -124,29 +138,37 @@ func init() {
 func main() {
 	var err error
 
-	cli.Parse(os.Args[1:])
+	err = cli.Parse(os.Args[1:])
+	if err != nil {
+		logrus.Fatal(err)
+		return
+	}
+
 	usage := func(msg string) {
 		if msg != "" {
-			fmt.Fprintf(os.Stderr, "ERROR: %s\n", msg)
+			logrus.Errorf("ERROR: %s", msg)
 		}
-		fmt.Fprintf(os.Stderr, "Usage: %s --http-host subspace.example.com\n\n", os.Args[0])
+		logrus.Errorf("Usage: %s --http-host subspace.example.com\n", os.Args[0])
 		cli.PrintDefaults()
 	}
 
 	if showHelp {
 		usage("Help info")
 		os.Exit(0)
+		return
 	}
 
 	if showVersion {
 		fmt.Printf("Subspace %s\n", version)
 		os.Exit(0)
+		return
 	}
 
 	// http host
 	if httpHost == "" {
 		usage("--http-host flag is required")
 		os.Exit(1)
+		return
 	}
 
 	initLogger()
@@ -156,6 +178,12 @@ func main() {
 	httpIP, httpPort, err := net.SplitHostPort(httpAddr)
 	if err != nil {
 		usage("invalid --http-addr: " + err.Error())
+		return
+	}
+
+	if clientKeepAlive > 0 && clientKeepAlive < 10 {
+		usage("invalid --client-keep-alive value, cannot be less then 10 seconds")
+		return
 	}
 
 	// Clean datadir path.
@@ -165,6 +193,7 @@ func main() {
 	config, err = NewConfig("config.json")
 	if err != nil {
 		logrus.Fatal(err)
+		return
 	}
 
 	// Secure token
@@ -225,23 +254,23 @@ func main() {
 
 	// Plain text web server for use behind a reverse proxy.
 	if !letsencrypt {
-		httpd := &http.Server{
+		httpServer := &http.Server{
 			Handler:        r,
 			Addr:           net.JoinHostPort(httpIP, httpPort),
 			WriteTimeout:   httpTimeout,
 			ReadTimeout:    httpTimeout,
 			MaxHeaderBytes: maxHeaderBytes,
 		}
-		hostport := net.JoinHostPort(httpHost, httpPort)
+		hostPort := net.JoinHostPort(httpHost, httpPort)
 		if httpPort == "80" {
-			hostport = httpHost
+			hostPort = httpHost
 		}
 		logrus.Infof("Subspace version: %s %s", version, &url.URL{
 			Scheme: "http",
-			Host:   hostport,
+			Host:   hostPort,
 			Path:   httpPrefix,
 		})
-		logrus.Fatal(httpd.ListenAndServe())
+		logrus.Fatal(httpServer.ListenAndServe())
 	}
 
 	// Let's Encrypt TLS mode
@@ -271,14 +300,14 @@ func main() {
 			http.Redirect(w, r, r.URL.String(), http.StatusFound)
 		})
 
-		httpd := &http.Server{
+		httpServer := &http.Server{
 			Handler:        certmanager.HTTPHandler(redir),
 			Addr:           net.JoinHostPort(httpIP, "80"),
 			WriteTimeout:   httpTimeout,
 			ReadTimeout:    httpTimeout,
 			MaxHeaderBytes: maxHeaderBytes,
 		}
-		if err := httpd.ListenAndServe(); err != nil {
+		if err := httpServer.ListenAndServe(); err != nil {
 			logrus.Fatalf("http server on port 80 failed: %s", err)
 		}
 	}()
@@ -307,7 +336,7 @@ func main() {
 		httpAddr = net.JoinHostPort(httpIP, httpPort)
 	}
 
-	httpsd := &http.Server{
+	httpServer := &http.Server{
 		Handler:        r,
 		Addr:           httpAddr,
 		WriteTimeout:   httpTimeout,
@@ -323,16 +352,16 @@ func main() {
 	}
 	tlsListener := tls.NewListener(tcpKeepAliveListener{tcpListener.(*net.TCPListener)}, &tlsConfig)
 
-	hostport := net.JoinHostPort(httpHost, httpPort)
+	hostPort := net.JoinHostPort(httpHost, httpPort)
 	if httpPort == "443" {
-		hostport = httpHost
+		hostPort = httpHost
 	}
 	logrus.Infof("Subspace version: %s %s", version, &url.URL{
 		Scheme: "https",
-		Host:   hostport,
+		Host:   hostPort,
 		Path:   "/",
 	})
-	logrus.Fatal(httpsd.Serve(tlsListener))
+	logrus.Fatal(httpServer.Serve(tlsListener))
 }
 
 type tcpKeepAliveListener struct {
@@ -344,8 +373,14 @@ func (l tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 	if err != nil {
 		return
 	}
-	tc.SetKeepAlive(true)
-	tc.SetKeepAlivePeriod(10 * time.Minute)
+
+	if err := tc.SetKeepAlive(true); err != nil {
+		return nil, err
+	}
+
+	if err := tc.SetKeepAlivePeriod(10 * time.Minute); err != nil {
+		return nil, err
+	}
 	return tc, nil
 }
 

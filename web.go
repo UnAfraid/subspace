@@ -17,13 +17,14 @@ import (
 
 	"golang.org/x/net/publicsuffix"
 
-	humanize "github.com/dustin/go-humanize"
-	httprouter "github.com/julienschmidt/httprouter"
+	"github.com/dustin/go-humanize"
+	"github.com/julienschmidt/httprouter"
 )
 
 var (
 	SessionCookieName    = "__subspace_session"
 	SessionCookieNameSSO = "__subspace_sso_session"
+	StartTime            = time.Now()
 )
 
 type Session struct {
@@ -71,6 +72,7 @@ func Error(w http.ResponseWriter, err error) {
 	fmt.Fprintf(w, errorPageHTML+"\n")
 }
 
+//go:generate go-bindata --pkg main static/... templates/... email/... shell/...
 func (w *Web) HTML() {
 	t := template.New(w.template).Funcs(template.FuncMap{
 		"hasprefix": strings.HasPrefix,
@@ -256,12 +258,12 @@ func serveAsset(w http.ResponseWriter, r *http.Request, filename string) {
 		http.NotFound(w, r)
 		return
 	}
-	fi, err := AssetInfo(path)
-	if err != nil {
-		Error(w, err)
-		return
-	}
-	http.ServeContent(w, r, path, fi.ModTime(), bytes.NewReader(b))
+	//fi, err := AssetInfo(path)
+	//if err != nil {
+	//	Error(w, err)
+	//	return
+	//}
+	http.ServeContent(w, r, path, StartTime, bytes.NewReader(b))
 }
 
 func ValidateSession(r *http.Request) (*Session, error) {

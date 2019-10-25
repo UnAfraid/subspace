@@ -3,10 +3,10 @@
 *.xml
 *.log
 *.zip
-.idea
 *.iml
 bindata.go
 subspace-linux-amd64
+subspace
 
 # Compiled Object files, Static and Dynamic libs (Shared Objects)
 *.o
@@ -33,6 +33,4 @@ _testmain.go
 *.test
 *.prof
 
-input/
-input_*/
-output/
+data/

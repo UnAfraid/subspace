@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"text/template"
 
 	"github.com/julienschmidt/httprouter"
 	"golang.org/x/crypto/bcrypt"
@@ -379,41 +380,25 @@ func profileAddHandler(w *Web) {
 	subnetSplit := strings.Split(clientIPv4Subnet, ".")
 	newAddr := fmt.Sprintf("%s.%s.%s.%d", subnetSplit[0], subnetSplit[1], subnetSplit[2], profile.Number)
 
-	script := `
-cd {{$.Datadir}}/wireguard
-wg_private_key="$(wg genkey)"
-wg_public_key="$(echo $wg_private_key | wg pubkey)"
-
-wg set wg0 peer ${wg_public_key} allowed-ips {{$.NewAddress}}/32,fd00::10:97:{{$.Profile.Number}}/128
-
-cat <<WGPEER >peers/{{$.Profile.ID}}.conf
-[Peer]
-PublicKey = ${wg_public_key}
-AllowedIPs = {{$.NewAddress}}/32,fd00::10:97:{{$.Profile.Number}}/128
-
-WGPEER
-
-    cat <<WGCLIENT >clients/{{$.Profile.ID}}.conf
-[Interface]
-PrivateKey = ${wg_private_key}
-DNS = {{$.ClientIPv4Gateway}}, {{$.ClientIPv6Gateway}}
-Address = {{$.NewAddress}}/{{$.NewAddressMask}},fd00::10:97:{{$.Profile.Number}}/112
-
-[Peer]
-PublicKey = $(cat server.public)
-Endpoint = {{$.Domain}}:{{$.WireguardPort}}
-AllowedIPs = 0.0.0.0/0, ::/0
-WGCLIENT
-`
-	_, err = bash(script, struct {
-		Datadir           string
-		Profile           Profile
-		Domain            string
-		WireguardPort     int
-		NewAddress        string
-		NewAddressMask    int
-		ClientIPv4Gateway string
-		ClientIPv6Gateway string
+	_, err = bash("create_profile.shell", struct {
+		DataDir              string
+		Profile              Profile
+		Domain               string
+		WireguardPort        int
+		NewAddress           string
+		NewAddressMask       int
+		ClientIPv4Subnet     string
+		ClientIPv4DNS        string
+		ClientUseIPv4DNS     bool
+		ClientIPv4Gateway    string
+		ClientIPv4UseGateway bool
+		ClientIPv6Enabled    bool
+		ClientIPv6Subnet     string
+		ClientIPv6DNS        string
+		ClientIPv6UseDNS     bool
+		ClientIPv6Gateway    string
+		ClientIPv6UseGateway bool
+		ClientKeepAlive      int
 	}{
 		datadir,
 		profile,
@@ -421,8 +406,18 @@ WGCLIENT
 		wireguardPort,
 		newAddr,
 		mask,
+		clientIPv4Subnet,
+		clientIPv4DNS,
+		clientIPv4UseDNS,
 		clientIPv4Gateway,
+		clientIPv4UseGateway,
+		clientIPv6Enabled,
+		clientIPv6Subnet,
+		clientIPv6DNS,
+		clientIPv6UseDNS,
 		clientIPv6Gateway,
+		clientIPv6UseGateway,
+		clientKeepAlive,
 	})
 	if err != nil {
 		logrus.Warn(err)
@@ -560,16 +555,8 @@ func helpHandler(w *Web) {
 // Helpers
 //
 func deleteProfile(profile Profile) error {
-	script := `
-# WireGuard
-cd {{$.Datadir}}/wireguard
-peerid=$(cat peers/{{$.Profile.ID}}.conf | perl -ne 'print $1 if /PublicKey\s*=\s*(.*)/')
-wg set wg0 peer $peerid remove
-rm peers/{{$.Profile.ID}}.conf
-rm clients/{{$.Profile.ID}}.conf
-`
-	output, err := bash(script, struct {
-		Datadir string
+	output, err := bash("delete_profile.shell", struct {
+		DataDir string
 		Profile Profile
 	}{
 		datadir,
@@ -579,4 +566,28 @@ rm clients/{{$.Profile.ID}}.conf
 		return fmt.Errorf("delete profile failed %s %s", err, output)
 	}
 	return config.DeleteProfile(profile.ID)
+}
+
+func shellTemplate(name string) (*template.Template, error) {
+	for _, filename := range AssetNames() {
+		if !strings.HasPrefix(filename, "shell/") {
+			continue
+		}
+		templateName := strings.TrimPrefix(filename, "shell/")
+		if name != templateName {
+			continue
+		}
+
+		templateData, err := Asset(filename)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load asset: %s - %w", filename, err)
+		}
+
+		tmpl := template.New(templateName)
+		if _, err := tmpl.Parse(string(templateData)); err != nil {
+			return nil, fmt.Errorf("failed to parse template: %s - template: %s %w", filename, string(templateData), err)
+		}
+		return tmpl, nil
+	}
+	return nil, fmt.Errorf("couldn't find template for %s", name)
 }

@@ -1,0 +1,11 @@
+set -o nounset
+set -o errexit
+set -o pipefail
+set -o xtrace
+
+# WireGuard
+cd {{$.DataDir}}/wireguard
+peerid=$(cat peers/{{$.Profile.ID}}.conf | perl -ne 'print $1 if /PublicKey\s*=\s*(.*)/')
+wg set wg0 peer $peerid remove
+rm peers/{{$.Profile.ID}}.conf
+rm clients/{{$.Profile.ID}}.conf

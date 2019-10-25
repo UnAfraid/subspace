@@ -1,0 +1,30 @@
+set -o nounset
+set -o errexit
+set -o pipefail
+set -o xtrace
+
+cd {{$.DataDir}}/wireguard
+wg_private_key="$(wg genkey)"
+wg_public_key="$(echo $wg_private_key | wg pubkey)"
+
+wg set wg0 peer ${wg_public_key} allowed-ips {{$.NewAddress}}/32{{if $.ClientIPv6Enabled}},fd00::10:97:{{$.Profile.Number}}/128{{end}}
+
+cat <<WGPEER >peers/{{$.Profile.ID}}.conf
+[Peer]
+PublicKey = ${wg_public_key}
+AllowedIPs = {{$.NewAddress}}/32{{if $.ClientIPv6Enabled}},fd00::10:97:{{$.Profile.Number}}/128{{end}}
+
+WGPEER
+
+cat <<WGCLIENT >clients/{{$.Profile.ID}}.conf
+[Interface]
+PrivateKey = ${wg_private_key}{{if $.ClientUseIPv4DNS}}
+DNS = {{$.ClientIPv4DNS}}{{if $.ClientIPv6UseDNS}}, {{$.ClientIPv6DNS}} {{end}}{{end}}
+Address = {{$.NewAddress}}/{{$.NewAddressMask}}{{if $.ClientIPv6Enabled}},fd00::10:97:{{$.Profile.Number}}/112{{end}}
+
+[Peer]
+PublicKey = $(cat server.public)
+Endpoint = {{$.Domain}}:{{$.WireguardPort}}
+AllowedIPs = {{$.ClientIPv4Subnet}}{{if $.ClientIPv6Enabled}}, {{$.ClientIPv6Subnet}}{{end}} {{if (gt $.ClientKeepAlive 0)}}
+PersistentKeepalive = {{$.ClientKeepAlive}} {{end}}
+WGCLIENT

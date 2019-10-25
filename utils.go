@@ -6,11 +6,12 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"text/template"
+	"strings"
 	"time"
 )
 
@@ -43,16 +44,11 @@ func Overwrite(filename string, data []byte, perm os.FileMode) error {
 }
 
 func bash(tmpl string, params interface{}) (string, error) {
-	preamble := `
-set -o nounset
-set -o errexit
-set -o pipefail
-set -o xtrace
-`
-	t, err := template.New("template").Parse(preamble + tmpl)
+	t, err := shellTemplate(tmpl)
 	if err != nil {
 		return "", err
 	}
+
 	var script bytes.Buffer
 	err = t.Execute(&script, params)
 	if err != nil {
@@ -61,6 +57,8 @@ set -o xtrace
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
+
+	logrus.Debugf("Executing: %s params: %+v", strings.ReplaceAll(string(script.Bytes()), "\\n", "\n"), params)
 
 	output, err := exec.CommandContext(ctx, "/bin/bash", "-c", string(script.Bytes())).CombinedOutput()
 	if err != nil {
