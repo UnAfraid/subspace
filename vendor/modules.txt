@@ -1,0 +1,55 @@
+# github.com/beevik/etree v1.1.0
+github.com/beevik/etree
+# github.com/crewjam/saml v0.0.0-20190521120225-344d075952c9
+github.com/crewjam/saml
+github.com/crewjam/saml/logger
+github.com/crewjam/saml/samlsp
+github.com/crewjam/saml/xmlenc
+# github.com/dgrijalva/jwt-go v3.2.0+incompatible
+github.com/dgrijalva/jwt-go
+# github.com/dustin/go-humanize v1.0.0
+github.com/dustin/go-humanize
+# github.com/gorilla/securecookie v1.1.1
+github.com/gorilla/securecookie
+# github.com/jonboulle/clockwork v0.1.0
+github.com/jonboulle/clockwork
+# github.com/julienschmidt/httprouter v1.3.0
+github.com/julienschmidt/httprouter
+# github.com/konsorten/go-windows-terminal-sequences v1.0.2
+github.com/konsorten/go-windows-terminal-sequences
+# github.com/mattn/go-colorable v0.1.4
+github.com/mattn/go-colorable
+# github.com/mattn/go-isatty v0.0.10
+github.com/mattn/go-isatty
+# github.com/russellhaering/goxmldsig v0.0.0-20180430223755-7acd5e4a6ef7
+github.com/russellhaering/goxmldsig
+github.com/russellhaering/goxmldsig/etreeutils
+github.com/russellhaering/goxmldsig/types
+# github.com/sirupsen/logrus v1.4.2
+github.com/sirupsen/logrus
+# github.com/skip2/go-qrcode v0.0.0-20190110000554-dc11ecdae0a9
+github.com/skip2/go-qrcode
+github.com/skip2/go-qrcode/bitset
+github.com/skip2/go-qrcode/reedsolomon
+# golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+golang.org/x/crypto/acme
+golang.org/x/crypto/acme/autocert
+golang.org/x/crypto/bcrypt
+golang.org/x/crypto/blowfish
+golang.org/x/crypto/ripemd160
+# golang.org/x/net v0.0.0-20191021144547-ec77196f6094
+golang.org/x/net/idna
+golang.org/x/net/publicsuffix
+# golang.org/x/sys v0.0.0-20191025090151-53bf42e6b339
+golang.org/x/sys/unix
+# golang.org/x/text v0.3.2
+golang.org/x/text/secure/bidirule
+golang.org/x/text/transform
+golang.org/x/text/unicode/bidi
+golang.org/x/text/unicode/norm
+# gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc
+gopkg.in/alexcesaro/quotedprintable.v3
+# gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
+gopkg.in/gomail.v2
+# gopkg.in/natefinch/lumberjack.v2 v2.0.0
+gopkg.in/natefinch/lumberjack.v2
